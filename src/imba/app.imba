@@ -31,7 +31,7 @@ tag app
 	def build
 		messages.push Message.new 'I am a fake message.'
 		messages.push Message.new 'Hello'
-		messages.push Message.new 'Sup?', 'Bob'
+		messages.push Message.new 'Sup?', 'Bob?!!'
 		schedule
 
 	def onsubmit e

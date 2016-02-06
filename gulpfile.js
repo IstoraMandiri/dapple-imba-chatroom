@@ -1,25 +1,30 @@
 var del = require('del')
 var exec = require('child_process').exec
 
+var source = require('vinyl-source-stream')
+var buffer = require('vinyl-buffer');
+
 var gulp = require('gulp')
 var htmlmin = require('gulp-htmlmin')
 var livereload = require('gulp-livereload')
 var concat = require('gulp-concat')
 var uglify = require('gulp-uglify')
-var webpack = require('webpack-stream')
+
+var browserify = require('browserify')
 
 var paths = {
   src:{
     imba: 'src/imba/**/*.imba',
     js: 'src/js/**/*.js',
-    // solContracts: 'src/sold/**/*.sold',
-    // solTests: 'src/sold/**/*.sold',
+    solContracts: ['src/sol/**/*.sol', '!src/sol/test/**/*.sol'],
+    solTests: 'src/sol/test/**/*.sol',
     index: 'src/index.html'
   },
   tmp:{
     lib: 'tmp/lib/',
     imba:  'tmp/imba/',
-    dapple: 'tmp/dapple/'
+    dapple: 'tmp/dapple/',
+    dappleBuild: 'tmp/dappleBuild/'
   },
   dist: {
     js: 'dist/js/',
@@ -48,20 +53,36 @@ gulp.task('build-imba', function (cb) {
 gulp.task('build-dapple', function (cb) {
   exec('dapple build', function(err,res){
     if(err){ console.log(err) }
-    // not working
-    gulp.src(paths.tmp.dapple+'js_module.js')
-    .pipe(webpack())
-    gulp.dest(paths.tmp.dapple)
+    browserify({
+      entries: paths.tmp.dappleBuild+'js_module.js',
+      standalone: 'Contracts'
+    })
+    .bundle()
+    .pipe(source('app.js'))
+    .pipe(buffer())
+    .pipe(gulp.dest(paths.tmp.dapple))
     .on('end', function(){
       cb()
     })
   })
 })
 
+gulp.task('test-dapple', function(cb){
+  process.stdout.write('Testing...\r')
+  exec('dapple test', function(err,res,failed){
+    if(err){
+      console.log(err)
+    } else if (failed) {
+      process.stdout.write(failed)
+    } else {
+      process.stdout.write("\u001b[32mPassed all tests! \n")
+    }
+    cb()
+  })
+})
 
-gulp.task('build-js', [/*'build-dapple',*/'build-imba', 'copy-js'], function(cb){
-  // TODO cache stuff...
-  var pipe = gulp.src([
+var mergeJsSource = function(cb){
+  return gulp.src([
     paths.tmp.lib+'**/*.js',
     paths.tmp.dapple+'**/*.js',
     paths.tmp.imba+'**/*.js'
@@ -70,23 +91,28 @@ gulp.task('build-js', [/*'build-dapple',*/'build-imba', 'copy-js'], function(cb)
   .pipe(uglify())
   .pipe(gulp.dest(paths.dist.js))
   .pipe(livereload())
-  .on('end', function(){
-    del.sync(['tmp/'])
-    cb()
-  })
-})
+}
+
+gulp.task('merge-all', ['build-dapple','build-imba', 'copy-js'], mergeJsSource)
+gulp.task('merge-js', ['copy-js'], mergeJsSource)
+gulp.task('merge-dapple', ['build-dapple'], mergeJsSource)
+gulp.task('merge-imba', ['build-imba'], mergeJsSource)
 
 gulp.task('clean', function () {
+  del.sync(['tmp/'])
   del.sync(['dist/*'])
 })
 
-gulp.task('default', ['clean', 'build-js', 'copy-index'])
+gulp.task('test', ['test-dapple'])
 
+gulp.task('rebuild', ['clean', 'merge-all', 'copy-index'])
+gulp.task('default', ['rebuild', 'test'])
 
 gulp.task('watch', ['default'], function() {
   livereload.listen()
-  // gulp.watch(paths.src.dapple, ['build-dapple'])
-  gulp.watch(paths.src.imba, ['build-imba'])
-  gulp.watch(paths.src.js, ['copy-js'])
+  gulp.watch('src/sol/**/*.sol', ['test-dapple'])
+  gulp.watch(paths.src.js, ['merge-js'])
+  gulp.watch(paths.src.imba, ['merge-imba'])
+  gulp.watch(paths.src.solContracts, ['merge-dapple'])
   gulp.watch(paths.src.index, ['copy-index'])
 })
