@@ -1,9 +1,5 @@
 {
   "private": true,
-  "scripts": {
-    "build": "imba compile src/ -o build/assets/js/",
-    "watch": "imba watch src/ -o build/assets/js/"
-  },
   "dependencies": {
     "browserify": "^13.0.0",
     "del": "^2.2.0",
@@ -16,7 +12,6 @@
     "requirejs": "^2.1.22",
     "vinyl-buffer": "^1.0.0",
     "vinyl-source-stream": "^1.1.0",
-    "vinyl-transform": "^1.0.0",
     "web3": "^0.15.1",
     "webpack-stream": "^3.1.0"
   }

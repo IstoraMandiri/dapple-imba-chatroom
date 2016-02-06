@@ -1,10 +1,10 @@
 var del = require('del')
 var exec = require('child_process').exec
 
+var gulp = require('gulp')
 var source = require('vinyl-source-stream')
 var buffer = require('vinyl-buffer');
 
-var gulp = require('gulp')
 var htmlmin = require('gulp-htmlmin')
 var livereload = require('gulp-livereload')
 var concat = require('gulp-concat')
@@ -35,21 +35,23 @@ var paths = {
 gulp.task('copy-index', function () {
   gulp.src(paths.src.index)
   .pipe(gulp.dest(paths.dist.index))
+  .pipe(livereload())
 })
 
 gulp.task('copy-js', function (){
   gulp.src(paths.src.js)
+  .pipe(uglify())
   .pipe(gulp.dest(paths.tmp.lib))
 })
 
 gulp.task('build-imba', function (cb) {
   exec('imba compile src/imba/ -o ' + paths.tmp.imba , function(err,res){
+    // TODO minifiy
     if(err){ console.log(err) }
     cb()
   })
 })
 
-// TODO imeplement dapple ... ?
 gulp.task('build-dapple', function (cb) {
   exec('dapple build', function(err,res){
     if(err){ console.log(err) }
@@ -60,8 +62,10 @@ gulp.task('build-dapple', function (cb) {
     .bundle()
     .pipe(source('app.js'))
     .pipe(buffer())
+    .pipe(uglify())
     .pipe(gulp.dest(paths.tmp.dapple))
     .on('end', function(){
+      del.sync([paths.tmp.dappleBuild])
       cb()
     })
   })
@@ -88,7 +92,6 @@ var mergeJsSource = function(cb){
     paths.tmp.imba+'**/*.js'
   ])
   .pipe(concat('app.js'))
-  .pipe(uglify())
   .pipe(gulp.dest(paths.dist.js))
   .pipe(livereload())
 }
@@ -99,10 +102,8 @@ gulp.task('merge-dapple', ['build-dapple'], mergeJsSource)
 gulp.task('merge-imba', ['build-imba'], mergeJsSource)
 
 gulp.task('clean', function () {
-  del.sync(['tmp/'])
-  del.sync(['dist/*'])
+  del.sync(['tmp/', 'dist/*'])
 })
-
 gulp.task('test', ['test-dapple'])
 
 gulp.task('rebuild', ['clean', 'merge-all', 'copy-index'])
