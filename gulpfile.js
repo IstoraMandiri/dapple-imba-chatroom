@@ -34,6 +34,7 @@ var paths = {
 
 gulp.task('copy-index', function () {
   gulp.src(paths.src.index)
+  .pipe(htmlmin({collapseWhitespace: true}))
   .pipe(gulp.dest(paths.dist.index))
   .pipe(livereload())
 })
